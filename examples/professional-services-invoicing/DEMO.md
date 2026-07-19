@@ -82,6 +82,21 @@ gates the quality of the thinking, not just the data."
 back to the ticket, and the ticket closes — but only because the pilot was
 verified.
 
+## Optional act — the interactive board (~2 min)
+
+```bash
+python serve_board.py --llm      # opens http://127.0.0.1:8765
+```
+
+A live board over the same tickets: **drag** a ticket from Open to In progress,
+**click** it to edit the 5 Whys right in the description, **add a note** (your
+half of the conversation), then hit **"Ask the Sensei"** — it re-reads your
+analysis and replaces its questions section in place. Answer the questions,
+ask again, and watch it move from questions to "ready to act on."
+
+**Say:** "Locally this is a JSON file; in production these exact interactions
+happen in Microsoft Planner — the agents don't care which board it is."
+
 ## Act 4 — The dashboard (~1 min)
 
 ```bash

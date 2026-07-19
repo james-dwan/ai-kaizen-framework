@@ -102,18 +102,20 @@ class SenseiAgent:
         bucket = bucket or self.config.kanban.get("buckets", {}).get("exceptions", "Exceptions")
         coached = 0
         for ticket in board.list_tickets(bucket=bucket, status="open"):
-            if "**Sensei" in ticket.description and not recoach:
-                continue
-            # Review the human-authored part only; replace any prior sensei section.
-            body = ticket.description.split(self.SECTION_MARKER)[0].rstrip()
-            analysis = _parse_five_whys(body)
-            review = self.review(analysis)
-            board.update_ticket(
-                ticket.id,
-                description=body + self.SECTION_MARKER.replace("**Sensei", "") + review.to_markdown(),
-            )
-            coached += 1
+            if self.coach_ticket(board, ticket, recoach=recoach):
+                coached += 1
         return coached
+
+    def coach_ticket(self, board: KanbanBoard, ticket, recoach: bool = True) -> bool:
+        """Review one ticket's analysis and (re)write the sensei section of its
+        description. Returns True if the ticket was coached."""
+        if "**Sensei" in ticket.description and not recoach:
+            return False
+        # Review the human-authored part only; replace any prior sensei section.
+        body = ticket.description.split(self.SECTION_MARKER)[0].rstrip()
+        review = self.review(_parse_five_whys(body))
+        board.update_ticket(ticket.id, description=body + "\n\n---\n\n" + review.to_markdown())
+        return True
 
     # -- internals ----------------------------------------------------------
 

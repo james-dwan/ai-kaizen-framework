@@ -46,6 +46,14 @@ python run_investigation.py
 #    the Kanban board, and the latest daily report) — opens in your browser
 python make_dashboard.py
 
+# 5. Serve the INTERACTIVE board: drag tickets between lanes, edit the
+#    5 Whys in a ticket, add notes, and "Ask the Sensei" in place
+python serve_board.py --llm
+
+# 6. Ticket-mediated coaching from the command line (same loop, headless)
+python coach_board.py --llm          # sensei asks questions in each ticket
+python coach_board.py --llm --recoach  # after you edit answers into tickets
+
 # Optional: have Claude write the reflection narrative and draft fishbones
 pip install '.[llm]'
 cp ../../.env.example ../../.env    # put your ANTHROPIC_API_KEY in .env (git-ignored)

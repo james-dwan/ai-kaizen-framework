@@ -381,3 +381,57 @@ def test_sensei_recoach_responds_to_updated_analysis(tmp_path):
     updated = [t for t in board.list_tickets() if t.id == ticket.id][0]
     assert updated.description.count("**Sensei") == 1          # old section replaced
     assert "ready to act on" in updated.description            # solid analysis accepted
+
+
+# -- Interactive board server ----------------------------------------------
+
+import json as _json  # noqa: E402
+import threading  # noqa: E402
+import urllib.request  # noqa: E402
+
+from kaizen.board_server import make_server  # noqa: E402
+
+
+def _req(port, path, payload=None):
+    data = _json.dumps(payload).encode() if payload is not None else None
+    req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", data=data,
+                                 method="POST" if data is not None else "GET")
+    with urllib.request.urlopen(req) as resp:
+        return _json.loads(resp.read())
+
+
+def test_board_server_api(tmp_path):
+    rules = [{"name": "always", "condition": "True", "severity": "high",
+              "description": "Something abnormal happened"}]
+    config = make_config(tmp_path, rules=rules)
+    graph = build(tmp_path, config)
+    graph.invoke({"value": 1})
+    board = LocalKanbanBoard(config.data["kanban"]["board_path"])
+
+    server = make_server(config, board, port=0)
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        state = _req(port, "/api/state")
+        assert state["process"] == "test-process"
+        ticket = state["tickets"][0]
+
+        # drag to in_progress
+        updated = _req(port, f"/api/tickets/{ticket['id']}", {"status": "in_progress"})
+        assert updated["status"] == "in_progress"
+
+        # add a note
+        updated = _req(port, f"/api/tickets/{ticket['id']}/note", {"text": "went and saw the export job"})
+        assert "went and saw the export job" in updated["description"]
+
+        # ask the sensei
+        updated = _req(port, f"/api/tickets/{ticket['id']}/coach", {})
+        assert "**Sensei" in updated["description"]
+
+        # edits + notes survive on disk
+        on_disk = [t for t in board.list_tickets() if t.id == ticket["id"]][0]
+        assert on_disk.status == "in_progress"
+    finally:
+        server.shutdown()
+        server.server_close()
