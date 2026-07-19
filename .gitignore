@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# AI Jidoka runtime artifacts
+kaizen_board.json
+kaizen_runlog.jsonl
+kaizen_reports/
+config_history/

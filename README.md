@@ -1,2 +1,178 @@
-# ai-jidoka-framework
-Human-AI Collaborative Kaizen for Agentic Systems with LangGraph
+# AI Jidoka Framework
+
+**Human-AI Collaborative Kaizen for Agentic Systems**
+
+**Author:** James Dwan, Catalyst Consulting · MIT License
+
+Embed daily improvement katas, Jidoka exception management, SQDIP metrics,
+5 Whys root cause analysis, and FMEA thinking into
+[LangGraph](https://github.com/langchain-ai/langgraph)-based agentic workflows —
+with a shared Kanban board as the workspace where humans and AI solve problems
+together.
+
+## Philosophy
+
+AI Jidoka is the practice of intelligent human-machine partnership — where AI
+and humans work together with shared awareness, perform daily improvement
+katas, conduct root cause analysis, and continuously evolve both the automated
+process and human standard work. The focus is on true collaboration, not
+automation with occasional human oversight.
+
+Read the full [white paper](docs/AI-Jidoka-Framework-White-Paper.md).
+
+## What you get
+
+| Lean concept | In the framework |
+|---|---|
+| **Jidoka** (stop on abnormality) | Business-editable rules watch every node; at high severity the graph routes to an `andon` node and stops before defects flow downstream |
+| **Make problems visible** | Every abnormality becomes a structured Kanban ticket with a 5 Whys scaffold and a countermeasure checklist |
+| **SQDIP** | Safety, Quality, Delivery, Inventory, Productivity computed daily from the run log, scored against your targets |
+| **Daily Kaizen kata** | A Reflection Agent prepares the daily summary and improvement suggestions; humans and AI review it together |
+| **FMEA** | A registry of anticipated failure modes, ranked by RPN, folded into the daily reflection |
+| **Sensei coaching** | A Sensei Agent reviews 5 Whys analyses socratically — questioning vague problem statements, blame-the-person causes, and weak countermeasures. Questions, never answers |
+| **Standard work as a living agreement** | One versioned YAML file holds rules, prompts, targets, *and* human standard work — editable without code changes, archived on every save |
+| **Safe experimentation** | Sandbox mode logs everything but creates no tickets and takes no external actions; config versioning makes every change reversible |
+
+## Quick start
+
+```bash
+git clone https://github.com/james-dwan/ai-jidoka-framework.git
+cd ai-jidoka-framework
+pip install -e .
+
+cd examples/professional-services-invoicing
+python invoicing_workflow.py     # watch the line stop on bad data
+python run_daily_kaizen.py       # generate the daily Kaizen summary
+```
+
+## Minimal usage
+
+```python
+from typing import TypedDict
+from kaizen import KaizenConfig, KaizenGraphBuilder
+from kaizen.kaizen_graph import KaizenState
+
+class MyState(KaizenState, TypedDict, total=False):
+    orders: list
+    total: float
+
+def collect(state): ...
+def process(state): ...
+
+config = KaizenConfig.load("config/kaizen_config.yaml")
+
+builder = KaizenGraphBuilder(MyState, config)
+builder.add_node("collect", collect)
+builder.add_node("process", process)
+builder.set_entry_point("collect")
+builder.add_edge("collect", "process")
+builder.set_finish_point("process")
+
+graph = builder.compile()
+result = graph.invoke({})
+
+if result["kaizen_stopped"]:
+    print("Andon:", result["kaizen_stop_reason"])
+```
+
+Abnormality rules live in the config, not the code:
+
+```yaml
+rules:
+  - name: order-total-out-of-range
+    description: Order total exceeds the auto-approval threshold
+    condition: "state.get('total', 0) > 25000"
+    severity: high          # high => Jidoka stop
+    sqdip_category: safety
+    nodes: [process]
+```
+
+The daily reflection:
+
+```python
+from kaizen import KaizenConfig, ReflectionAgent, RunLog, create_board, build_default_llm
+
+config = KaizenConfig.load("config/kaizen_config.yaml")
+agent = ReflectionAgent(
+    config=config,
+    runlog=RunLog(),
+    board=create_board(config.kanban),
+    llm=build_default_llm(),   # optional: Claude writes the narrative
+)
+summary = agent.daily_reflection()   # SQDIP + exceptions + suggestions -> board
+```
+
+## Kanban providers
+
+The board is the shared workspace, so it should live where your team already
+works. Microsoft 365 is first-class; the core works with anything.
+
+- **`local`** (default) — a JSON file; zero configuration, ideal for
+  development and sandbox experiments
+- **`planner`** — Microsoft Planner via Microsoft Graph
+  (`pip install 'ai-jidoka-framework[m365]'`)
+- **`lists`** — Microsoft Lists (SharePoint) via Microsoft Graph
+- Anything else — implement the three-method `KanbanBoard` ABC
+
+Authentication stays in your hands: pass any `token_provider` callable (device
+code, client secret, managed identity — whatever your tenant requires).
+
+## Optional extras
+
+```bash
+pip install 'ai-jidoka-framework[m365]'   # Microsoft Planner / Lists boards
+pip install 'ai-jidoka-framework[llm]'    # Claude-written daily reflections
+pip install 'ai-jidoka-framework[dev]'    # tests + lint
+```
+
+## Repository layout
+
+```
+src/kaizen/
+  kaizen_graph.py        # KaizenGraphBuilder — LangGraph + Jidoka
+  exception_handler.py   # rules, ExceptionRecord, 5 Whys, FMEA
+  reflection_agent.py    # SQDIP + daily Kaizen summaries
+  kanban_integration.py  # local / Planner / Lists boards
+  config.py              # versioned YAML config layer
+  runlog.py              # append-only event log
+docs/                    # white paper + architecture
+examples/professional-services-invoicing/
+```
+
+## Sensei coaching
+
+```python
+from kaizen import KaizenConfig, SenseiAgent, create_board
+
+config = KaizenConfig.load("config/kaizen_config.yaml")
+sensei = SenseiAgent(config)                    # add llm=... for richer questions
+sensei.coach_open_exceptions(create_board(config.kanban))
+# Every open exception ticket now carries socratic questions about its 5 Whys.
+```
+
+## Roadmap
+
+- **Root cause investigations as flows.** Each exception ticket becomes its own
+  long-running KaizenGraph: problem statement → data/Pareto → cause
+  brainstorming (fishbone) → 5 Whys → countermeasure design → pilot → verify →
+  standardize, checkpointed across days with human input at each gate, and the
+  Sensei Agent as the Jidoka layer on the *thinking* itself.
+- **Specialist kata agents.** A roster of agents good at different jobs —
+  problem-statement writing, Pareto analysis, fishbone facilitation, cause
+  brainstorming, pilot design, team communications — orchestrated within the
+  investigation flow.
+- More Kanban providers (Trello, Jira, GitHub Projects) and SQDIP trend
+  analysis across days.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Kanban adapters and new examples are
+especially welcome.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+© 2026 James Dwan, Catalyst Consulting

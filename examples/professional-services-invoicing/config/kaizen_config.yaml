@@ -1,0 +1,151 @@
+# AI Jidoka configuration — Professional Services Invoicing
+#
+# This file is standard work for BOTH the AI and the humans on the team.
+# Business users edit rules, prompts, targets, and the daily kata here —
+# no code changes required. Every save via KaizenConfig.save() bumps the
+# version and archives the previous file to config_history/.
+
+version: 1
+
+process:
+  name: professional-services-invoicing
+  description: >
+    Monthly invoicing for professional services engagements: collect delivery
+    reports, validate them, aggregate billable hours, calculate the invoice,
+    and raise it in the finance system.
+
+# Sandbox mode: exceptions are logged but no Kanban tickets are created and
+# no invoice is raised. Use it to trial rule/prompt changes safely.
+sandbox: false
+
+jidoka:
+  # Stop the line (route to the andon node) at or above this severity:
+  # low | medium | high | critical
+  stop_on_severity: high
+
+# ---------------------------------------------------------------------------
+# Abnormality rules — the Jidoka sensors. Conditions are Python expressions
+# evaluated against the workflow state. Treat them like standard work:
+# reviewed by the team, improved in the daily kata.
+# ---------------------------------------------------------------------------
+rules:
+  - name: missing-delivery-reports
+    description: One or more consultants have not submitted a delivery report
+    condition: "len(state.get('missing_reports', [])) > 0"
+    severity: medium
+    sqdip_category: delivery
+    countermeasure_hint: >
+      Chase the consultant(s) listed in missing_reports. If this recurs,
+      consider an automated reminder two days before cutoff (poka-yoke).
+    nodes: [validate_reports]
+
+  - name: negative-or-zero-hours
+    description: A delivery report contains zero or negative billable hours
+    condition: "len(state.get('invalid_reports', [])) > 0"
+    # Downgraded from high to medium in the 2026-06-12 kata: invalid reports
+    # are excluded and ticketed, so the run can safely continue.
+    severity: medium
+    sqdip_category: quality
+    countermeasure_hint: >
+      Go and see the source report. Zero/negative hours usually means a data
+      entry error or a timesheet export fault.
+    nodes: [validate_reports]
+
+  - name: missing-rate-card
+    description: An engagement has no rate card entry, so hours cannot be billed
+    condition: "len(state.get('unbilled_engagements', [])) > 0"
+    severity: high
+    sqdip_category: quality
+    nodes: [calculate_invoice]
+
+  - name: invoice-over-approval-threshold
+    description: Invoice total exceeds the auto-approval threshold and needs human review
+    condition: "state.get('invoice_total', 0) > 25000"
+    severity: high
+    sqdip_category: safety
+    countermeasure_hint: >
+      Large invoices must be reviewed by the engagement manager before raising.
+      This stop is intentional, not a defect.
+    nodes: [calculate_invoice]
+
+  - name: low-utilisation-warning
+    description: Aggregated billable hours are unusually low for the period
+    condition: "0 < state.get('total_hours', 0) < 100"
+    severity: low
+    sqdip_category: productivity
+    nodes: [aggregate_hours]
+
+# ---------------------------------------------------------------------------
+# Prompts — editable without code changes. Used by the Reflection Agent when
+# an LLM is configured.
+# ---------------------------------------------------------------------------
+prompts:
+  daily_reflection: |
+    You are a Kaizen coach facilitating a daily improvement kata for the
+    process '{process_name}' (professional services invoicing). Review the
+    SQDIP metrics and exceptions below, then write a short daily Kaizen
+    summary for the joint human-AI standup.
+
+    SQDIP snapshot:
+    {sqdip}
+
+    Exceptions:
+    {exceptions}
+
+    Structure your answer as:
+    1. SQDIP analysis — call out anything off-target and say why it matters
+    2. The one exception pattern most worth a 5 Whys today
+    3. Two or three small, testable improvements — for the automated process
+       AND for human standard work (e.g. report submission habits)
+    4. One question for the team to discuss today
+
+# ---------------------------------------------------------------------------
+# Human standard work — the human half of the partnership, versioned together
+# with the automation.
+# ---------------------------------------------------------------------------
+standard_work:
+  daily_kata:
+    - Review the daily Kaizen summary together (AI prepares, humans interpret).
+    - Walk the Exceptions column of the board; confirm each stop was justified.
+    - Pick at most one exception pattern for 5 Whys root cause analysis.
+    - Agree on one small countermeasure and who owns it.
+    - Update rules/prompts/standard work in this file if the standard changed.
+  invoice_review:
+    - For invoices over the approval threshold, the engagement manager reviews
+      line items against the statement of work before releasing the stop.
+
+sqdip_targets:
+  safety:
+    description: Invoices raised without required human approval
+    target: 0
+  quality:
+    description: Runs with at least one exception (%)
+    target: 10.0
+  delivery:
+    description: Invoicing runs completed without a stop (%)
+    target: 95.0
+  inventory:
+    description: Open tickets on the shared board
+    target: 8
+  productivity:
+    description: Invoicing runs completed per day
+    target: null
+
+# ---------------------------------------------------------------------------
+# Shared Kanban board. provider: local | planner | lists
+# For Microsoft Planner, supply plan_id + bucket_ids and pass a token_provider
+# to KaizenGraphBuilder / create_board().
+# ---------------------------------------------------------------------------
+kanban:
+  provider: local
+  board_path: kaizen_board.json
+  buckets:
+    exceptions: Exceptions
+    kaizen: Daily Kaizen
+    experiments: Experiments
+  # provider: planner
+  # plan_id: "<planner-plan-id>"
+  # bucket_ids:
+  #   Exceptions: "<bucket-id>"
+  #   Daily Kaizen: "<bucket-id>"
+  #   Experiments: "<bucket-id>"

@@ -1,0 +1,21 @@
+{
+  "period": "2026-07",
+  "expected_consultants": [
+    "amara.okafor",
+    "ben.hughes",
+    "carla.mendes",
+    "deepak.rao",
+    "elena.kovacs"
+  ],
+  "rate_card": {
+    "ENG-001": {"client": "Northwind Manufacturing", "rate": 145.0},
+    "ENG-002": {"client": "Contoso Health", "rate": 165.0},
+    "ENG-003": {"client": "Fabrikam Logistics", "rate": 150.0}
+  },
+  "reports": [
+    {"consultant": "amara.okafor", "engagement": "ENG-001", "hours": 152.5, "notes": "Line-side coaching + VSM workshops"},
+    {"consultant": "carla.mendes", "engagement": "ENG-002", "hours": 140.0, "notes": "Theatre scheduling kaizen"},
+    {"consultant": "deepak.rao", "engagement": "ENG-004", "hours": 88.0, "notes": "New engagement - rate card pending"},
+    {"consultant": "elena.kovacs", "engagement": "ENG-003", "hours": -8.0, "notes": "Timesheet export error"}
+  ]
+}

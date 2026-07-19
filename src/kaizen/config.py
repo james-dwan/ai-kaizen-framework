@@ -1,0 +1,157 @@
+"""Configuration layer for the AI Jidoka Framework.
+
+Business users edit a single YAML file — rules, prompts, SQDIP targets, and
+human standard work — without touching code. Every save creates a new version
+and archives the previous one, so experiments are always reversible.
+"""
+
+from __future__ import annotations
+
+import copy
+import datetime as _dt
+import shutil
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import yaml
+
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "version": 1,
+    "process": {
+        "name": "unnamed-process",
+        "description": "",
+    },
+    "sandbox": False,
+    "jidoka": {
+        # Stop the line when an exception at or above this severity occurs.
+        "stop_on_severity": "high",
+    },
+    "rules": [],
+    "prompts": {
+        "daily_reflection": (
+            "You are a Kaizen coach facilitating a daily improvement kata for the "
+            "process '{process_name}'. Review today's SQDIP metrics and exceptions, "
+            "then write a short daily Kaizen summary for the joint human-AI standup.\n\n"
+            "SQDIP snapshot:\n{sqdip}\n\nExceptions:\n{exceptions}\n\n"
+            "Structure your answer as:\n"
+            "1. SQDIP analysis (call out anything off-target)\n"
+            "2. Patterns worth a 5 Whys root cause analysis\n"
+            "3. Two or three small, testable improvement suggestions — for the "
+            "automated process AND for human standard work\n"
+            "4. One question for the team to discuss today"
+        ),
+    },
+    "standard_work": {
+        "daily_kata": [
+            "Review the daily Kaizen summary together (AI prepares, humans interpret).",
+            "Pick at most one exception pattern for 5 Whys root cause analysis.",
+            "Agree on one small countermeasure and who owns it.",
+            "Update rules/prompts/standard work in the config if the standard changed.",
+        ],
+    },
+    "sqdip_targets": {
+        "safety": {"description": "Guardrail breaches / policy violations", "target": 0},
+        "quality": {"description": "Exception rate (%)", "target": 2.0},
+        "delivery": {"description": "Runs completed on time (%)", "target": 98.0},
+        "inventory": {"description": "Open Kanban tickets", "target": 10},
+        "productivity": {"description": "Runs completed per day", "target": None},
+    },
+    "kanban": {
+        "provider": "local",
+        "board_path": "kaizen_board.json",
+        "buckets": {
+            "exceptions": "Exceptions",
+            "kaizen": "Daily Kaizen",
+            "experiments": "Experiments",
+        },
+    },
+}
+
+
+class KaizenConfig:
+    """Versioned, YAML-backed configuration.
+
+    >>> cfg = KaizenConfig.load("config/kaizen_config.yaml")
+    >>> cfg.rules
+    [...]
+    >>> cfg.data["jidoka"]["stop_on_severity"] = "medium"
+    >>> cfg.save()  # bumps version, archives the previous file
+    """
+
+    def __init__(self, data: Dict[str, Any], path: Optional[Path] = None):
+        self.data = data
+        self.path = Path(path) if path else None
+
+    # -- loading / saving -------------------------------------------------
+
+    @classmethod
+    def load(cls, path: str) -> "KaizenConfig":
+        p = Path(path)
+        with open(p, "r", encoding="utf-8") as fh:
+            raw = yaml.safe_load(fh) or {}
+        data = _deep_merge(copy.deepcopy(DEFAULT_CONFIG), raw)
+        return cls(data, p)
+
+    @classmethod
+    def default(cls) -> "KaizenConfig":
+        return cls(copy.deepcopy(DEFAULT_CONFIG))
+
+    def save(self, path: Optional[str] = None) -> None:
+        """Persist the config, bumping the version and archiving the old file."""
+        target = Path(path) if path else self.path
+        if target is None:
+            raise ValueError("No path given and config was not loaded from a file.")
+        if target.exists():
+            history = target.parent / "config_history"
+            history.mkdir(exist_ok=True)
+            stamp = _dt.datetime.now().strftime("%Y%m%dT%H%M%S")
+            old_version = self.data.get("version", 1)
+            shutil.copy2(target, history / f"{target.stem}.v{old_version}.{stamp}{target.suffix}")
+            self.data["version"] = int(old_version) + 1
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with open(target, "w", encoding="utf-8") as fh:
+            yaml.safe_dump(self.data, fh, sort_keys=False, allow_unicode=True)
+        self.path = target
+
+    # -- convenience accessors --------------------------------------------
+
+    @property
+    def process_name(self) -> str:
+        return self.data.get("process", {}).get("name", "unnamed-process")
+
+    @property
+    def sandbox(self) -> bool:
+        return bool(self.data.get("sandbox", False))
+
+    @property
+    def stop_on_severity(self) -> str:
+        return self.data.get("jidoka", {}).get("stop_on_severity", "high")
+
+    @property
+    def rules(self) -> List[Dict[str, Any]]:
+        return self.data.get("rules", [])
+
+    @property
+    def prompts(self) -> Dict[str, str]:
+        return self.data.get("prompts", {})
+
+    @property
+    def standard_work(self) -> Dict[str, Any]:
+        return self.data.get("standard_work", {})
+
+    @property
+    def sqdip_targets(self) -> Dict[str, Any]:
+        return self.data.get("sqdip_targets", {})
+
+    @property
+    def kanban(self) -> Dict[str, Any]:
+        return self.data.get("kanban", {})
+
+
+def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            base[key] = _deep_merge(base[key], value)
+        else:
+            base[key] = value
+    return base
