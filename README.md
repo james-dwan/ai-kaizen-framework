@@ -30,6 +30,7 @@ Read the full [white paper](docs/AI-Jidoka-Framework-White-Paper.md).
 | **Daily Kaizen kata** | A Reflection Agent prepares the daily summary and improvement suggestions; humans and AI review it together |
 | **FMEA** | A registry of anticipated failure modes, ranked by RPN, folded into the daily reflection |
 | **Sensei coaching** | A Sensei Agent reviews 5 Whys analyses socratically — questioning vague problem statements, blame-the-person causes, and weak countermeasures. Questions, never answers |
+| **Investigations as flows** | Each exception ticket can spawn its own checkpointed LangGraph: problem framing → Pareto → fishbone → 5 Whys → Sensei gate → countermeasure → pilot → verify → standardize. Human gates at every stage are non-optional; a weak analysis stops the flow the way bad data stops production |
 | **Standard work as a living agreement** | One versioned YAML file holds rules, prompts, targets, *and* human standard work — editable without code changes, archived on every save |
 | **Safe experimentation** | Sandbox mode logs everything but creates no tickets and takes no external actions; config versioning makes every change reversible |
 
@@ -150,13 +151,30 @@ sensei.coach_open_exceptions(create_board(config.kanban))
 # Every open exception ticket now carries socratic questions about its 5 Whys.
 ```
 
+## Investigations as flows
+
+```python
+from langgraph.types import Command
+from kaizen import InvestigationGraphBuilder, KaizenConfig, RunLog, create_board
+
+config = KaizenConfig.load("config/kaizen_config.yaml")
+board = create_board(config.kanban)
+
+builder = InvestigationGraphBuilder(config, board, runlog=RunLog())
+flow = builder.build()                      # pass a persistent checkpointer in production
+thread = {"configurable": {"thread_id": ticket_id}}   # the ticket IS the investigation
+
+state = flow.invoke(builder.start_input(ticket_id), thread)
+while "__interrupt__" in state:             # every stage waits for a human
+    answer = ask_the_team(state["__interrupt__"][0].value)
+    state = flow.invoke(Command(resume=answer), thread)
+# On completion, the full A3 is written back to the ticket.
+```
+
+See it interactively: `examples/professional-services-invoicing/run_investigation.py`.
+
 ## Roadmap
 
-- **Root cause investigations as flows.** Each exception ticket becomes its own
-  long-running KaizenGraph: problem statement → data/Pareto → cause
-  brainstorming (fishbone) → 5 Whys → countermeasure design → pilot → verify →
-  standardize, checkpointed across days with human input at each gate, and the
-  Sensei Agent as the Jidoka layer on the *thinking* itself.
 - **Specialist kata agents.** A roster of agents good at different jobs —
   problem-statement writing, Pareto analysis, fishbone facilitation, cause
   brainstorming, pilot design, team communications — orchestrated within the

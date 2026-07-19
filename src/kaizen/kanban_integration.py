@@ -154,16 +154,10 @@ class PlannerKanbanBoard(_GraphBoard):
         bucket_id = self.bucket_ids.get(ticket.bucket)
         if bucket_id is None:
             raise KeyError(f"No Planner bucket ID configured for bucket '{ticket.bucket}'")
-        task = self._request(
-            "POST",
-            f"{self.GRAPH}/planner/tasks",
-            {
-                "planId": self.plan_id,
-                "bucketId": bucket_id,
-                "title": ticket.title,
-                "dueDateTime": f"{ticket.due}T00:00:00Z" if ticket.due else None,
-            },
-        )
+        payload = {"planId": self.plan_id, "bucketId": bucket_id, "title": ticket.title}
+        if ticket.due:
+            payload["dueDateTime"] = f"{ticket.due}T00:00:00Z"
+        task = self._request("POST", f"{self.GRAPH}/planner/tasks", payload)
         ticket.id = task["id"]
         # Description and checklist live on task *details*, patched separately.
         details = self._request("GET", f"{self.GRAPH}/planner/tasks/{ticket.id}/details")

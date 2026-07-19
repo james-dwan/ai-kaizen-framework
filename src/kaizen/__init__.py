@@ -66,14 +66,21 @@ __all__ = [
     "KaizenGraphBuilder",
     "KaizenState",
     "ANDON_NODE",
+    "InvestigationGraphBuilder",
+    "InvestigationState",
+    "a3_markdown",
 ]
 
 
 def __getattr__(name: str):
-    # KaizenGraphBuilder requires langgraph; import lazily so config/kanban/
+    # Graph builders require langgraph; import lazily so config/kanban/
     # reflection tooling stays usable without it.
     if name in ("KaizenGraphBuilder", "KaizenState", "ANDON_NODE"):
         from . import kaizen_graph
 
         return getattr(kaizen_graph, name)
+    if name in ("InvestigationGraphBuilder", "InvestigationState", "a3_markdown"):
+        from . import investigation_graph
+
+        return getattr(investigation_graph, name)
     raise AttributeError(f"module 'kaizen' has no attribute {name!r}")

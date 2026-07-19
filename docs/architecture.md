@@ -56,6 +56,8 @@ flowchart TB
 | `FMEARegistry` / `FMEAEntry` | `exception_handler.py` | Anticipated failure modes ranked by RPN, folded into daily reflections |
 | `KanbanBoard` + providers | `kanban_integration.py` | `LocalKanbanBoard` (JSON), `PlannerKanbanBoard`, `ListsKanbanBoard` (Microsoft Graph); implement the ABC for anything else |
 | `ReflectionAgent` | `reflection_agent.py` | Computes the SQDIP snapshot from the run log, writes the daily Kaizen summary (optionally LLM-narrated), posts it to the board |
+| `SenseiAgent` | `sensei_agent.py` | Socratic review of 5 Whys analyses (vague problems, blame, weak countermeasures); coaches open exception tickets |
+| `InvestigationGraphBuilder` | `investigation_graph.py` | Turns an exception ticket into a checkpointed investigation flow (living A3) with non-optional human gates and the Sensei as the Jidoka layer on the thinking |
 | `KaizenConfig` | `config.py` | Single YAML file for rules, prompts, SQDIP targets, and human standard work; every save bumps the version and archives the old file |
 | `RunLog` | `runlog.py` | Append-only JSONL event log — the single source of truth for metrics |
 
@@ -74,6 +76,14 @@ flowchart TB
 4. **Joint Kaizen kata improves the system.** Humans and AI review the summary,
    run a 5 Whys on one pattern, and standardize the countermeasure — usually
    as an edit to `kaizen_config.yaml`, trialed first in sandbox mode.
+5. **Deep problems become investigation flows.** An exception ticket spawns a
+   checkpointed LangGraph (`frame_problem → collect_data → brainstorm_causes →
+   five_whys → sensei_gate → design_countermeasure → verify → standardize`).
+   Every stage pauses on `interrupt()` for human input; the Sensei gate loops
+   weak analyses back with socratic questions (override after three rounds is
+   possible but recorded). The completed A3 is written back to the ticket —
+   the ticket ID is the flow's thread ID, so board and flow are two views of
+   the same investigation.
 
 ## Design decisions
 

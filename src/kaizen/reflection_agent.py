@@ -63,7 +63,7 @@ class SQDIPSnapshot:
             return "n/a" if value is None else f"{value}{suffix}"
 
         return "\n".join([
-            f"| SQDIP | Today{'':1} |",
+            "| SQDIP | Today |",
             "|---|---|",
             f"| **S**afety | {self.safety_incidents} incidents{target('safety')} |",
             f"| **Q**uality | {fmt(self.quality_exception_rate, '%')} exception rate{target('quality')} |",
@@ -122,7 +122,12 @@ class ReflectionAgent:
             snapshot.quality_exception_rate = round(100.0 * runs_with_exceptions / runs_started, 1)
             snapshot.delivery_completion_rate = round(100.0 * runs_completed / runs_started, 1)
         if self.board is not None:
-            snapshot.inventory_open_tickets = self.board.open_ticket_count()
+            # Inventory = open problem-solving work. Daily Kaizen summary posts
+            # are agenda items, not WIP, so they don't count against the target.
+            kaizen_bucket = self.config.kanban.get("buckets", {}).get("kaizen", "Daily Kaizen")
+            snapshot.inventory_open_tickets = sum(
+                1 for t in self.board.list_tickets(status="open") if t.bucket != kaizen_bucket
+            )
         return snapshot
 
     # -- the daily reflection ---------------------------------------------

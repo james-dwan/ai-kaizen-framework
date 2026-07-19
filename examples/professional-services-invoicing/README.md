@@ -38,6 +38,10 @@ python invoicing_workflow.py
 # 2. Generate the daily Kaizen summary (SQDIP + reflection + kata agenda)
 python run_daily_kaizen.py
 
+# 3. Run a root cause investigation on one of the exception tickets —
+#    an interactive A3-as-a-flow with the Sensei gating your 5 Whys
+python run_investigation.py
+
 # Optional: have Claude write the reflection narrative
 pip install '.[llm]' && export ANTHROPIC_API_KEY=...
 python run_daily_kaizen.py --llm
@@ -52,6 +56,24 @@ Artifacts land next to the scripts:
   Microsoft Planner or Lists via the config)
 - `kaizen_runlog.jsonl` — the event log the SQDIP metrics are computed from
 - `kaizen_reports/kaizen-YYYY-MM-DD.md` — daily Kaizen summaries
+
+## The investigation flow
+
+`run_investigation.py` turns an exception ticket into a structured
+investigation — a living A3 that walks:
+
+```
+frame_problem → collect_data (Pareto) → brainstorm_causes (fishbone)
+    → five_whys → sensei_gate → design_countermeasure → verify → standardize
+           ^__________(needs work)_________|
+```
+
+Every stage pauses for your input — the human gates are non-optional. Try
+answering the 5 Whys with "the consultant was careless": the Sensei will send
+you back with socratic questions about the *process*. After three rounds you
+may explicitly override the Sensei, but the override is recorded in the run
+log. On completion the full A3 is written back to the ticket and the ticket is
+closed (only if the countermeasure was verified).
 
 ## The daily kata
 

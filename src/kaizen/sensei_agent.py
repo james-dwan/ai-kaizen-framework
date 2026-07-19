@@ -75,9 +75,11 @@ class SenseiAgent:
 
     # -- reviewing a single analysis ---------------------------------------
 
-    def review(self, analysis: FiveWhysAnalysis) -> SenseiReview:
+    def review(self, analysis: FiveWhysAnalysis, require_countermeasure: bool = True) -> SenseiReview:
+        """Review an analysis. Set ``require_countermeasure=False`` when coaching
+        mid-investigation, before the countermeasure stage has been reached."""
         review = SenseiReview(problem=analysis.problem)
-        review.questions = self._heuristic_questions(analysis)
+        review.questions = self._heuristic_questions(analysis, require_countermeasure)
         if self.llm is not None:
             review.questions.extend(self._llm_questions(analysis))
         review.ready = not review.questions
@@ -104,7 +106,8 @@ class SenseiAgent:
 
     # -- internals ----------------------------------------------------------
 
-    def _heuristic_questions(self, analysis: FiveWhysAnalysis) -> List[str]:
+    def _heuristic_questions(self, analysis: FiveWhysAnalysis,
+                             require_countermeasure: bool = True) -> List[str]:
         questions: List[str] = []
         answered = [w for w in analysis.whys if w and not w.startswith("_(")]
 
@@ -141,7 +144,7 @@ class SenseiAgent:
                 "Reminders and training fade. What change to the process, the tool, or the "
                 "standard work would remove the cause even on a bad day?"
             )
-        if answered and not analysis.countermeasure:
+        if require_countermeasure and answered and not analysis.countermeasure:
             questions.append(
                 "You have a causal chain but no countermeasure. What is the smallest "
                 "experiment that would test whether removing this cause prevents the problem?"
@@ -192,8 +195,11 @@ def _parse_five_whys(description: str) -> FiveWhysAnalysis:
         value = match.group(1).strip()
         return "" if value.startswith("_(") else value
 
+    problem = clean(problem_match)
+    if not problem and description:
+        problem = description.splitlines()[0][:200]
     return FiveWhysAnalysis(
-        problem=clean(problem_match) or description.splitlines()[0][:200] if description else "",
+        problem=problem,
         whys=[w for w in whys if not w.startswith("_(")],
         root_cause=clean(root_match),
         countermeasure=clean(counter_match),

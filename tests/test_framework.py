@@ -195,3 +195,103 @@ def test_sensei_coaches_open_tickets(tmp_path):
     assert "**Sensei" in ticket.description
     # Second pass is idempotent — already-coached tickets are skipped.
     assert sensei.coach_open_exceptions(board) == 0
+
+
+# -- Investigation flow ----------------------------------------------------
+
+from langgraph.types import Command  # noqa: E402
+
+from kaizen import InvestigationGraphBuilder  # noqa: E402
+
+
+def test_investigation_flow_end_to_end_with_sensei_gate(tmp_path):
+    # 1. Produce an open exception ticket via a real run.
+    rules = [{"name": "too-big", "condition": "state.get('doubled', 0) > 5",
+              "severity": "high", "description": "Doubled value exceeded the limit"}]
+    config = make_config(tmp_path, rules=rules)
+    graph = build(tmp_path, config)
+    graph.invoke({"value": 10})
+
+    board = LocalKanbanBoard(config.data["kanban"]["board_path"])
+    ticket = board.list_tickets(bucket="Exceptions", status="open")[0]
+
+    # 2. Drive the investigation through every human gate.
+    builder = InvestigationGraphBuilder(config, board, runlog=RunLog(str(tmp_path / "log.jsonl")))
+    flow = builder.build()
+    thread = {"configurable": {"thread_id": ticket.id}}
+
+    def stage(state):
+        return state["__interrupt__"][0].value["stage"]
+
+    state = flow.invoke(builder.start_input(ticket.id), thread)
+    assert stage(state) == "frame_problem"
+    state = flow.invoke(Command(resume=(
+        "Run 2026-07-19 doubled the value to 20 against a limit of 5 in the double node"
+    )), thread)
+    assert stage(state) == "collect_data"
+    state = flow.invoke(Command(resume="Observed: input value arrived pre-doubled from upstream"), thread)
+    assert stage(state) == "brainstorm_causes"
+    state = flow.invoke(Command(resume="Process: upstream feed doubles values\nData: no schema check"), thread)
+    assert stage(state) == "five_whys"
+
+    # Weak analysis: blame + short chain -> the sensei must bounce it back.
+    state = flow.invoke(Command(resume="The operator was careless\nHuman error"), thread)
+    assert stage(state) == "five_whys"
+    assert state["__interrupt__"][0].value["sensei_questions"]
+
+    # Solid chain -> the gate opens.
+    state = flow.invoke(Command(resume="\n".join([
+        "The doubled value exceeded the limit",
+        "The input value was already doubled upstream",
+        "The upstream feed changed units last week",
+        "No contract test exists between the feed and this process",
+        "The integration predates the team's contract-testing standard",
+        "Upstream feed has no contract test enforcing units",
+    ])), thread)
+    assert stage(state) == "design_countermeasure"
+
+    state = flow.invoke(Command(resume=(
+        "countermeasure: add a contract test on the upstream feed units\n"
+        "pilot: run the feed in sandbox with the contract test for one week"
+    )), thread)
+    assert stage(state) == "verify"
+    state = flow.invoke(Command(resume="yes: one week in sandbox, zero unit mismatches"), thread)
+
+    # 3. Complete: A3 written back, ticket closed, run log updated.
+    assert state["status"] == "standardized"
+    assert state["verified"] is True
+    updated = [t for t in board.list_tickets() if t.id == ticket.id][0]
+    assert updated.status == "done"
+    assert "## 4. Causal chain (5 Whys)" in updated.description
+    events = RunLog(str(tmp_path / "log.jsonl")).events()
+    assert any(e["type"] == "investigation_completed" for e in events)
+
+
+def test_sensei_override_after_max_rounds(tmp_path):
+    from kaizen.investigation_graph import MAX_SENSEI_ROUNDS
+
+    rules = [{"name": "always", "condition": "True", "severity": "high"}]
+    config = make_config(tmp_path, rules=rules)
+    graph = build(tmp_path, config)
+    graph.invoke({"value": 1})
+    board = LocalKanbanBoard(config.data["kanban"]["board_path"])
+    ticket = board.list_tickets(bucket="Exceptions", status="open")[0]
+
+    builder = InvestigationGraphBuilder(config, board, runlog=RunLog(str(tmp_path / "log.jsonl")))
+    flow = builder.build()
+    thread = {"configurable": {"thread_id": ticket.id}}
+
+    state = flow.invoke(builder.start_input(ticket.id), thread)
+    state = flow.invoke(Command(resume="Something vague happened"), thread)   # frame
+    state = flow.invoke(Command(resume="ok"), thread)                          # data
+    state = flow.invoke(Command(resume="ok"), thread)                          # fishbone
+    # Keep submitting a weak analysis until the override gate appears.
+    for _ in range(MAX_SENSEI_ROUNDS):
+        state = flow.invoke(Command(resume="Human error\nCarelessness"), thread)
+    assert state["__interrupt__"][0].value["stage"] == "sensei_override"
+    state = flow.invoke(Command(resume="proceed"), thread)                     # explicit override
+    assert state["__interrupt__"][0].value["stage"] == "design_countermeasure"
+    state = flow.invoke(Command(resume="countermeasure: x\npilot: y"), thread)
+    state = flow.invoke(Command(resume="no: recurred immediately"), thread)
+    assert state["status"] == "in_progress"     # unverified -> not standardized
+    assert state["sensei_override"] is True
