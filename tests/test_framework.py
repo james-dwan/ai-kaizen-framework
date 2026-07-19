@@ -295,3 +295,31 @@ def test_sensei_override_after_max_rounds(tmp_path):
     state = flow.invoke(Command(resume="no: recurred immediately"), thread)
     assert state["status"] == "in_progress"     # unverified -> not standardized
     assert state["sensei_override"] is True
+
+
+# -- Dashboard -------------------------------------------------------------
+
+from kaizen import generate_dashboard  # noqa: E402
+
+
+def test_dashboard_generation(tmp_path):
+    rules = [{"name": "too-big", "condition": "state.get('doubled', 0) > 5",
+              "severity": "high", "description": "Doubled value exceeded the limit"}]
+    config = make_config(tmp_path, rules=rules)
+    runlog = RunLog(str(tmp_path / "log.jsonl"))
+    builder = KaizenGraphBuilder(State, config, runlog=runlog)
+    builder.add_node("double", double)
+    builder.set_entry_point("double")
+    builder.set_finish_point("double")
+    graph = builder.compile()
+    graph.invoke({"value": 10})
+
+    board = LocalKanbanBoard(config.data["kanban"]["board_path"])
+    path = generate_dashboard(config, board, runlog,
+                              output_path=str(tmp_path / "dash.html"))
+    page = (tmp_path / "dash.html").read_text()
+    assert path.endswith("dash.html")
+    assert "test-process" in page
+    assert "too-big" in page                  # pareto row
+    assert "on target" in page or "off target" in page
+    assert "&" not in page.split("<style>")[0] or "&#" in page  # escaped output

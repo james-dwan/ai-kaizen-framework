@@ -37,6 +37,7 @@ from .reflection_agent import (
     build_default_llm,
 )
 from .sensei_agent import SenseiAgent, SenseiReview
+from .dashboard import generate_dashboard
 
 __version__ = "0.1.0"
 
@@ -63,6 +64,7 @@ __all__ = [
     "build_default_llm",
     "SenseiAgent",
     "SenseiReview",
+    "generate_dashboard",
     "KaizenGraphBuilder",
     "KaizenState",
     "ANDON_NODE",

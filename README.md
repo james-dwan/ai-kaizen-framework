@@ -44,6 +44,8 @@ pip install -e .
 cd examples/professional-services-invoicing
 python invoicing_workflow.py     # watch the line stop on bad data
 python run_daily_kaizen.py       # generate the daily Kaizen summary
+python run_investigation.py      # interactive A3 investigation with the Sensei
+python make_dashboard.py         # visual dashboard: SQDIP, Pareto, board
 ```
 
 ## Minimal usage

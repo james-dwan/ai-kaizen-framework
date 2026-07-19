@@ -42,6 +42,10 @@ python run_daily_kaizen.py
 #    an interactive A3-as-a-flow with the Sensei gating your 5 Whys
 python run_investigation.py
 
+# 4. Generate the visual dashboard (SQDIP vs targets, exception Pareto,
+#    the Kanban board, and the latest daily report) — opens in your browser
+python make_dashboard.py
+
 # Optional: have Claude write the reflection narrative
 pip install '.[llm]' && export ANTHROPIC_API_KEY=...
 python run_daily_kaizen.py --llm
