@@ -88,5 +88,5 @@ The framework can be applied to processes such as professional services invoicin
 
 The **AI Kaizen Framework** reimagines agentic systems as platforms for ongoing human-machine partnership. By embedding daily collaborative improvement katas, organizations can achieve not just automation, but true operational excellence that evolves with the people and processes it serves.
 
-**Copyright © 2026 James Dwan, Catalyst Consulting**  
+**Copyright © 2026 James Dwan**  
 This work is licensed under the MIT License.

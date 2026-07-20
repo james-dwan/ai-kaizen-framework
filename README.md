@@ -203,4 +203,4 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
-© 2026 James Dwan, Catalyst Consulting
+© 2026 James Dwan
