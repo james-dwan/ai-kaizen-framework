@@ -330,13 +330,9 @@ rm -rf kaizen_reports config_history
 
 ## Where to go next
 
-- **Point it at your own process** — copy the example folder, replace the node
-  functions with your workflow, and write your own rules and targets in the
-  config. The agents need no changes.
-- **Run it against Microsoft Planner** — set `kanban.provider: planner` with
-  your plan/bucket IDs and a `token_provider` (see the commented block in
-  `config/kaizen_config.yaml`). Statuses map to Planner's progress columns,
-  analyses to task notes, and proposal cards are assigned to the process
-  owner.
+- **Hook it up to your real process** — the **[adoption guide](ADOPTION.md)**
+  covers connecting your workflow (LangGraph or not), writing real rules and
+  targets, the Microsoft Planner/tenant setup, running the agents as services,
+  governance, and a Lean-style rollout plan.
 - **Read the [white paper](AI-Kaizen-Framework-White-Paper.md)** for the
   philosophy, and [`architecture.md`](architecture.md) for how the pieces fit.

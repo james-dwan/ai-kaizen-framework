@@ -48,7 +48,8 @@ Read the full [white paper](docs/AI-Kaizen-Framework-White-Paper.md).
 
 **New here? Follow the step-by-step [tutorial](docs/TUTORIAL.md)** — it covers
 setup from scratch (including getting a Claude API key) and walks every part
-of the demo with expected output. The short version:
+of the demo with expected output. Ready to connect your own process? See the
+**[adoption guide](docs/ADOPTION.md)**. The short version:
 
 ```bash
 git clone https://github.com/james-dwan/ai-kaizen-framework.git
