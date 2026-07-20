@@ -18,11 +18,19 @@ katas, conduct root cause analysis, and continuously evolve both the automated
 process and human standard work. The focus is on true collaboration, not
 automation with occasional human oversight.
 
-**Jidoka** — stopping the line and making a problem visible the moment an
-abnormality occurs — is one pillar of that practice (it's where the partnership
-begins), alongside SQDIP metrics, the daily kata, 5 Whys, FMEA, and standard
-work. Kaizen is the whole: the continuous, daily improvement loop those pillars
-serve.
+**AI Jidoka** — an agent detecting an abnormality in its own work, halting
+itself, and surfacing the problem to its human teammates rather than passing a
+flawed output downstream — is one pillar of that practice. It's the moment the
+partnership begins: the AI recognises the edge of what it can safely decide,
+and brings a human in at exactly that point. It sits alongside SQDIP metrics
+(a shared scorecard for the whole human-AI system), the daily kata (a short
+standup where humans and agents review the day together), 5 Whys (root cause
+before countermeasure — interrogating the process, never blaming a person or
+a model), FMEA (anticipating how prompts, data, integrations, and handoffs
+could fail before they do), and standard work (the agents' prompts, rules, and
+thresholds versioned together with the humans' practices, both improvable by
+either). Kaizen is the whole: the continuous, daily improvement loop those
+pillars serve.
 
 Read the full [white paper](docs/AI-Kaizen-Framework-White-Paper.md).
 
@@ -30,7 +38,7 @@ Read the full [white paper](docs/AI-Kaizen-Framework-White-Paper.md).
 
 | Lean concept | In the framework |
 |---|---|
-| **Jidoka** (stop on abnormality) | Business-editable rules watch every node; at high severity the graph routes to an `andon` node, stops before defects flow downstream, and raises one immediate card |
+| **AI Jidoka** (the agent stops itself) | Business-editable rules watch every step of the agent's workflow; on a serious abnormality the agent halts before a flawed output ships, routes to an `andon` node, and raises one card to bring its human teammates in |
 | **Defects are counted, problems are chosen** | Every abnormality is recorded and counted in the run log (feeding SQDIP and the Pareto) but is **not** carded one-by-one — a call centre logs its 20-30 daily defects without 20-30 tickets |
 | **Targets generate the work** | At the daily review, a **missed target** raises one problem card with the gap as its problem statement: *"On 20 July, 30 out of 1000 calls had customer complaints, against the target of <20."* Targets are config, so the metrics the team already reviews are what create the cards |
 | **SQDIP** | Safety, Quality, Delivery, Inventory, Productivity computed daily from the run log, scored against your targets |

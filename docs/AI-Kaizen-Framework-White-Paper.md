@@ -44,8 +44,8 @@ Joint identification of potential failure modes and preventive measures (poka-yo
 ### 2.6 Standard Work as Living Agreement
 Both the AI workflow (LangGraph + prompts) and human practices are treated as standard work — visible, improvable, and owned by the team.
 
-### 2.7 Jidoka: Stop and Make Problems Visible
-The framework’s safety pillar and the moment the partnership begins. When a workflow hits an abnormality it stops the line and surfaces the problem as a Kanban ticket rather than passing a defect downstream — bringing a human in exactly when judgment is needed. Jidoka is the trigger; Kaizen is the daily practice that follows, improving the system so the same abnormality does not recur.
+### 2.7 AI Jidoka: The Agent Stops Itself and Makes the Problem Visible
+The framework’s safety pillar and the moment the partnership begins. When an agent detects an abnormality in its own work — invalid input data, a result outside agreed limits, a decision above its authority — it halts itself and surfaces the problem as a card on the shared board, rather than passing a flawed output downstream. This is the AI recognising the edge of what it can safely decide and bringing a human in at exactly that point. AI Jidoka is the trigger; Kaizen is the daily practice that follows, improving both the agents and the human standard work so the same abnormality does not recur.
 
 ## 3. The AI Kaizen Framework
 
